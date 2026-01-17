@@ -1,0 +1,14 @@
+# Cocos Creator
+library/
+temp/
+local/
+build/
+profiles/
+.settings/
+
+# Node
+node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
