@@ -31,12 +31,15 @@ export class GameRoot extends Component {
   private battleController = new BattleController();
   private state = new GameState();
   private logLines: string[] = [];
+  private boardConfig = new BoardConfig();
 
   start() {
     this.ensureBoardNodes();
-    this.boardController = new BoardController(new BoardConfig(20));
+    this.boardController = new BoardController(this.boardConfig);
     if (this.boardRoot && this.playerNode) {
-      this.boardController.init(this.boardRoot, this.playerNode);
+      this.boardController.bindView(this.boardRoot, this.playerNode);
+      this.state.position = this.boardConfig.startIndex;
+      this.boardController.setCurrentIndex(this.state.position);
     }
 
     const baseDice = this.state.baseDice + this.state.playerStats.permanentDiceBonus;

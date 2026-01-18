@@ -13,9 +13,15 @@ export interface BoardTile {
 }
 
 export class BoardConfig {
+  boardSize = 20;
+  columns = 5;
+  tileSize = 90;
+  spacing = 12;
+  startIndex = 0;
   tiles: BoardTile[] = [];
 
   constructor(size = 20) {
+    this.boardSize = size;
     this.tiles = this.createDefaultTiles(size);
   }
 
