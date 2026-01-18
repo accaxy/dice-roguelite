@@ -45,12 +45,12 @@ export class GameRoot extends Component {
     const baseDice = this.state.baseDice + this.state.playerStats.permanentDiceBonus;
     this.diceController.resetDice(baseDice);
     this.refreshDiceLabel();
-    this.appendLog('探索开始：点击掷骰前进。');
+    this.log('探索开始：点击掷骰前进。');
 
     if (this.rollButton) {
       this.rollButton.node.on(Button.EventType.CLICK, this.handleRoll, this);
     } else {
-      this.appendLog('提示：请在编辑器中绑定掷骰按钮。');
+      this.log('提示：请在编辑器中绑定掷骰按钮。');
     }
   }
 
@@ -71,23 +71,24 @@ export class GameRoot extends Component {
   }
 
   private handleRoll() {
+    this.clearLog();
     if (this.state.phase !== Phase.Explore) {
-      this.appendLog('当前不在探索阶段。');
+      this.log('当前不在探索阶段。');
       return;
     }
     const roll = this.diceController.roll();
     if (roll === null || !this.boardController) {
-      this.appendLog('骰子已经用完。');
+      this.log('骰子已经用完。');
       this.enterBattle();
       return;
     }
 
-    this.appendLog(`掷骰结果：${roll}。`);
+    this.log(`掷骰结果：${roll}。`);
     const moveResult = this.boardController.moveSteps(this.state.position, roll);
     this.state.position = moveResult.newIndex;
     const eventResult = this.eventController.applyTile(moveResult.tile, this.state.playerStats);
-    this.appendLog(`抵达格子 ${moveResult.newIndex + 1}/${this.boardController.config.tiles.length}。`);
-    this.appendLog(eventResult.log);
+    this.log(`抵达格子 ${moveResult.newIndex + 1}/${this.boardController.config.tiles.length}。`);
+    this.log(eventResult.log);
     if (eventResult.extraDice) {
       this.diceController.addDice(eventResult.extraDice);
     }
@@ -103,14 +104,14 @@ export class GameRoot extends Component {
     if (this.rollButton) {
       this.rollButton.interactable = false;
     }
-    this.appendLog('骰子用完，进入战斗阶段。');
+    this.log('骰子用完，进入战斗阶段。');
     const logs = this.battleController.runBattle(this.state.playerStats);
-    logs.forEach((line) => this.appendLog(line));
+    logs.forEach((line) => this.log(line));
 
     const baseDice = this.state.baseDice + this.state.playerStats.permanentDiceBonus;
     this.diceController.resetDice(baseDice);
     this.state.setPhase(Phase.Explore);
-    this.appendLog('战斗结束，回到探索。');
+    this.log('战斗结束，回到探索。');
     if (this.rollButton) {
       this.rollButton.interactable = true;
     }
@@ -123,13 +124,17 @@ export class GameRoot extends Component {
     }
   }
 
-  private appendLog(message: string) {
-    this.logLines.push(message);
-    if (this.logLines.length > 12) {
-      this.logLines.shift();
-    }
+  private log(message: string) {
+    this.logLines = [...this.logLines, message].slice(-8);
     if (this.infoLabel) {
       this.infoLabel.string = this.logLines.join('\n');
+    }
+  }
+
+  private clearLog() {
+    this.logLines = [];
+    if (this.infoLabel) {
+      this.infoLabel.string = '';
     }
   }
 }
