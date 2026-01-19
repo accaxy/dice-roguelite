@@ -1,5 +1,15 @@
 import { BoardTile, TileType } from './BoardConfig';
-import { PlayerStats } from './GameState';
+interface PlayerStats {
+  atk: number;
+  atkSpeed: number;
+  crit: number;
+  hp: number;
+  gold: number;
+  shopDiscount: number;
+  weaponLevel: number;
+  skillLevel: number;
+  permanentDiceBonus: number;
+}
 
 export interface EventResult {
   log: string;
