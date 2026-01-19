@@ -21,6 +21,7 @@ export class GameState {
   phase: Phase = Phase.Explore;
   position = 0;
   baseDice = 3;
+  baseHp = 10;
   playerStats: PlayerStats = {
     atk: 10,
     atkSpeed: 1,

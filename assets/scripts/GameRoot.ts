@@ -1,4 +1,4 @@
-import { _decorator, Component, Button, Label, Node, UITransform } from 'cc';
+import { _decorator, Component, Button, Label, Node, tween, UITransform, Vec3, Color } from 'cc';
 import { BoardConfig } from './BoardConfig';
 import { BoardController } from './BoardController';
 import { DiceController } from './DiceController';
@@ -25,6 +25,9 @@ export class GameRoot extends Component {
   @property({ type: Node })
   boardRoot: Node | null = null;
 
+  @property({ type: Node })
+  enemyRoot: Node | null = null;
+
   private boardController: BoardController | null = null;
   private diceController = new DiceController();
   private eventController = new EventController();
@@ -46,6 +49,7 @@ export class GameRoot extends Component {
     this.diceController.resetDice(baseDice);
     this.refreshDiceLabel();
     this.log('探索开始：点击掷骰前进。');
+    this.log(`本体生命：${this.state.baseHp}`);
 
     if (this.rollButton) {
       this.rollButton.node.on(Button.EventType.CLICK, this.handleRoll, this);
@@ -92,6 +96,7 @@ export class GameRoot extends Component {
     if (eventResult.extraDice) {
       this.diceController.addDice(eventResult.extraDice);
     }
+    this.spawnEnemy();
 
     this.refreshDiceLabel();
     if (this.diceController.diceLeft <= 0) {
@@ -136,5 +141,61 @@ export class GameRoot extends Component {
     if (this.infoLabel) {
       this.infoLabel.string = '';
     }
+  }
+
+  private spawnEnemy() {
+    if (!this.boardController || !this.boardRoot) {
+      return;
+    }
+    const enemyRoot = this.ensureEnemyRoot();
+    const enemyNode = new Node('Enemy');
+    const transform = enemyNode.addComponent(UITransform);
+    transform.setContentSize(40, 40);
+    const label = enemyNode.addComponent(Label);
+    label.string = 'Enemy';
+    label.fontSize = 18;
+    label.color = new Color(240, 100, 100, 255);
+    enemyNode.setParent(enemyRoot);
+
+    const enemyRootTransform = enemyRoot.getComponent(UITransform);
+    if (!enemyRootTransform) {
+      enemyNode.destroy();
+      return;
+    }
+
+    const startWorld = this.boardRoot.getWorldPosition();
+    const startLocal = enemyRootTransform.convertToNodeSpaceAR(startWorld);
+    enemyNode.setPosition(startLocal);
+
+    const totalTiles = this.boardController.config.tiles.length;
+    const usePlayerTile = Math.random() < 0.5;
+    const targetIndex = usePlayerTile
+      ? this.state.position
+      : Math.floor(Math.random() * Math.max(totalTiles, 1));
+    const targetWorld = this.boardController.getTileWorldPos(targetIndex);
+    const targetLocal = enemyRootTransform.convertToNodeSpaceAR(targetWorld);
+    const distance = Vec3.distance(startLocal, targetLocal);
+    const moveSpeed = 320;
+    const duration = distance / moveSpeed;
+
+    tween(enemyNode)
+      .to(duration, { position: targetLocal })
+      .call(() => {
+        this.state.baseHp = Math.max(this.state.baseHp - 1, 0);
+        this.log(`Enemy hit! -1 HP (Base HP: ${this.state.baseHp})`);
+        enemyNode.destroy();
+      })
+      .start();
+  }
+
+  private ensureEnemyRoot() {
+    if (this.enemyRoot && this.enemyRoot.isValid) {
+      return this.enemyRoot;
+    }
+    const enemyRoot = new Node('EnemyRoot');
+    enemyRoot.addComponent(UITransform);
+    enemyRoot.setParent(this.node);
+    this.enemyRoot = enemyRoot;
+    return enemyRoot;
   }
 }

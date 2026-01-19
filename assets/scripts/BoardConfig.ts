@@ -14,7 +14,8 @@ export interface BoardTile {
 
 export class BoardConfig {
   boardSize = 20;
-  columns = 5;
+  gridSize = 6;
+  columns = 6;
   tileSize = 90;
   spacing = 12;
   startIndex = 0;
