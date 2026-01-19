@@ -1,10 +1,11 @@
-import { _decorator, Component, Button, Label, Node, tween, UITransform, Vec3, Color } from 'cc';
+import { _decorator, Component, Button, Label, Node, UITransform } from 'cc';
 import { BoardConfig } from './BoardConfig';
 import { BoardController } from './BoardController';
 import { DiceController } from './DiceController';
 import { EventController } from './EventController';
 import { BattleController } from './BattleController';
 import { GameState, Phase } from './GameState';
+import { EnemyController } from './EnemyController';
 
 const { ccclass, property } = _decorator;
 
@@ -19,6 +20,9 @@ export class GameRoot extends Component {
   @property({ type: Label })
   diceLeftLabel: Label | null = null;
 
+  @property({ type: Label })
+  baseHpLabel: Label | null = null;
+
   @property({ type: Node })
   playerNode: Node | null = null;
 
@@ -28,10 +32,20 @@ export class GameRoot extends Component {
   @property({ type: Node })
   enemyRoot: Node | null = null;
 
+  @property({ type: Number })
+  spawnInterval = 2.0;
+
+  @property({ type: Number })
+  enemySpeed = 250;
+
+  @property({ type: Number })
+  enemyDamage = 1;
+
   private boardController: BoardController | null = null;
   private diceController = new DiceController();
   private eventController = new EventController();
   private battleController = new BattleController();
+  private enemyController: EnemyController | null = null;
   private state = new GameState();
   private logLines: string[] = [];
   private boardConfig = new BoardConfig();
@@ -49,13 +63,15 @@ export class GameRoot extends Component {
     this.diceController.resetDice(baseDice);
     this.refreshDiceLabel();
     this.log('探索开始：点击掷骰前进。');
-    this.log(`本体生命：${this.state.baseHp}`);
+    this.refreshBaseHpLabel();
 
     if (this.rollButton) {
       this.rollButton.node.on(Button.EventType.CLICK, this.handleRoll, this);
     } else {
       this.log('提示：请在编辑器中绑定掷骰按钮。');
     }
+
+    this.setupEnemyController();
   }
 
   private ensureBoardNodes() {
@@ -96,7 +112,6 @@ export class GameRoot extends Component {
     if (eventResult.extraDice) {
       this.diceController.addDice(eventResult.extraDice);
     }
-    this.spawnEnemy();
 
     this.refreshDiceLabel();
     if (this.diceController.diceLeft <= 0) {
@@ -129,8 +144,14 @@ export class GameRoot extends Component {
     }
   }
 
+  private refreshBaseHpLabel() {
+    if (this.baseHpLabel) {
+      this.baseHpLabel.string = `本体生命：${this.state.baseHp}`;
+    }
+  }
+
   private log(message: string) {
-    this.logLines = [...this.logLines, message].slice(-8);
+    this.logLines = [...this.logLines, message].slice(-12);
     if (this.infoLabel) {
       this.infoLabel.string = this.logLines.join('\n');
     }
@@ -143,51 +164,6 @@ export class GameRoot extends Component {
     }
   }
 
-  private spawnEnemy() {
-    if (!this.boardController || !this.boardRoot) {
-      return;
-    }
-    const enemyRoot = this.ensureEnemyRoot();
-    const enemyNode = new Node('Enemy');
-    const transform = enemyNode.addComponent(UITransform);
-    transform.setContentSize(40, 40);
-    const label = enemyNode.addComponent(Label);
-    label.string = 'Enemy';
-    label.fontSize = 18;
-    label.color = new Color(240, 100, 100, 255);
-    enemyNode.setParent(enemyRoot);
-
-    const enemyRootTransform = enemyRoot.getComponent(UITransform);
-    if (!enemyRootTransform) {
-      enemyNode.destroy();
-      return;
-    }
-
-    const startWorld = this.boardRoot.getWorldPosition();
-    const startLocal = enemyRootTransform.convertToNodeSpaceAR(startWorld);
-    enemyNode.setPosition(startLocal);
-
-    const totalTiles = this.boardController.config.tiles.length;
-    const usePlayerTile = Math.random() < 0.5;
-    const targetIndex = usePlayerTile
-      ? this.state.position
-      : Math.floor(Math.random() * Math.max(totalTiles, 1));
-    const targetWorld = this.boardController.getTileWorldPos(targetIndex);
-    const targetLocal = enemyRootTransform.convertToNodeSpaceAR(targetWorld);
-    const distance = Vec3.distance(startLocal, targetLocal);
-    const moveSpeed = 320;
-    const duration = distance / moveSpeed;
-
-    tween(enemyNode)
-      .to(duration, { position: targetLocal })
-      .call(() => {
-        this.state.baseHp = Math.max(this.state.baseHp - 1, 0);
-        this.log(`Enemy hit! -1 HP (Base HP: ${this.state.baseHp})`);
-        enemyNode.destroy();
-      })
-      .start();
-  }
-
   private ensureEnemyRoot() {
     if (this.enemyRoot && this.enemyRoot.isValid) {
       return this.enemyRoot;
@@ -197,5 +173,35 @@ export class GameRoot extends Component {
     enemyRoot.setParent(this.node);
     this.enemyRoot = enemyRoot;
     return enemyRoot;
+  }
+
+  private setupEnemyController() {
+    if (!this.boardController || !this.boardRoot) {
+      return;
+    }
+    const enemyRoot = this.ensureEnemyRoot();
+    this.enemyController = new EnemyController({
+      boardController: this.boardController,
+      boardRoot: this.boardRoot,
+      enemyRoot,
+      spawnInterval: this.spawnInterval,
+      enemySpeed: this.enemySpeed,
+      enemyDamage: this.enemyDamage,
+      onEnemyHit: (targetIndex, damage) => {
+        this.state.baseHp = Math.max(this.state.baseHp - damage, 0);
+        this.refreshBaseHpLabel();
+        this.log(`Enemy hit cell ${targetIndex + 1}, baseHP -${damage}`);
+        if (this.state.baseHp <= 0) {
+          this.log('游戏结束');
+          this.enemyController?.stopSpawning();
+        }
+      },
+    });
+  }
+
+  update(dt: number) {
+    if (this.enemyController) {
+      this.enemyController.update(dt);
+    }
   }
 }
