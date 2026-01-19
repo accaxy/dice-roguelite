@@ -1,5 +1,7 @@
 export enum TileType {
   Weapon = 'Weapon',
+  Heal = 'Heal',
+  Buff = 'Buff',
   Skill = 'Skill',
   Fortune = 'Fortune',
   Shop = 'Shop',
@@ -29,10 +31,8 @@ export class BoardConfig {
   private createDefaultTiles(size: number): BoardTile[] {
     const types: TileType[] = [
       TileType.Weapon,
-      TileType.Skill,
-      TileType.Fortune,
-      TileType.Shop,
-      TileType.Dice,
+      TileType.Heal,
+      TileType.Buff,
       TileType.Empty,
     ];
     const tiles: BoardTile[] = [];

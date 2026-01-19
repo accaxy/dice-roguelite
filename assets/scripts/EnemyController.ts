@@ -15,6 +15,8 @@ interface EnemyEntry {
   node: Node;
   targetIndex: number;
   targetPosition: Vec3;
+  hp: number;
+  id: number;
 }
 
 export class EnemyController {
@@ -25,6 +27,9 @@ export class EnemyController {
   private spawnEnabled = true;
   private enemies: EnemyEntry[] = [];
   private onEnemyHit?: (targetIndex: number, damage: number) => void;
+  private totalToSpawn = 0;
+  private spawnedCount = 0;
+  private enemyId = 0;
 
   spawnInterval = 2.0;
   enemySpeed = 250;
@@ -41,7 +46,7 @@ export class EnemyController {
   }
 
   update(dt: number): void {
-    if (this.spawnEnabled) {
+    if (this.spawnEnabled && this.spawnedCount < this.totalToSpawn) {
       this.spawnTimer += dt;
       while (this.spawnTimer >= this.spawnInterval) {
         this.spawnTimer -= this.spawnInterval;
@@ -55,7 +60,35 @@ export class EnemyController {
     this.spawnEnabled = false;
   }
 
+  startWave(waveNo: number): void {
+    this.spawnTimer = 0;
+    this.spawnEnabled = true;
+    this.enemies.forEach((enemy) => enemy.node.destroy());
+    this.enemies = [];
+    this.spawnedCount = 0;
+    this.totalToSpawn = 6 + waveNo * 2;
+  }
+
+  isWaveCleared(): boolean {
+    return this.spawnedCount >= this.totalToSpawn && this.enemies.length === 0;
+  }
+
+  getEnemies(): EnemyEntry[] {
+    return this.enemies;
+  }
+
+  damageEnemy(enemy: EnemyEntry, damage: number): void {
+    enemy.hp = Math.max(0, enemy.hp - damage);
+    if (enemy.hp <= 0) {
+      enemy.node.destroy();
+      this.enemies = this.enemies.filter((entry) => entry.id !== enemy.id);
+    }
+  }
+
   private spawnEnemy(): void {
+    if (this.spawnedCount >= this.totalToSpawn) {
+      return;
+    }
     const enemyRootTransform = this.enemyRoot.getComponent(UITransform);
     if (!enemyRootTransform) {
       return;
@@ -85,7 +118,10 @@ export class EnemyController {
       node: enemyNode,
       targetIndex,
       targetPosition: targetLocal,
+      hp: 10,
+      id: this.enemyId++,
     });
+    this.spawnedCount += 1;
   }
 
   private updateEnemies(dt: number): void {
