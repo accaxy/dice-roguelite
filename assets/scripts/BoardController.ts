@@ -43,16 +43,17 @@ export class BoardController {
     container.setParent(this.boardRoot);
     this.tileContainer = container;
 
-    const { tileSize, spacing, columns } = this.config;
-    const rows = Math.ceil(this.config.tiles.length / columns);
-    const totalWidth = columns * tileSize + (columns - 1) * spacing;
-    const totalHeight = rows * tileSize + (rows - 1) * spacing;
+    const { tileSize, spacing, gridSize } = this.config;
+    const totalWidth = gridSize * tileSize + (gridSize - 1) * spacing;
+    const totalHeight = gridSize * tileSize + (gridSize - 1) * spacing;
     const offsetX = -totalWidth / 2 + tileSize / 2;
     const offsetY = totalHeight / 2 - tileSize / 2;
+    const ringCoords = this.getOuterRingCoords(gridSize);
 
     for (let i = 0; i < this.config.tiles.length; i += 1) {
-      const row = Math.floor(i / columns);
-      const col = i % columns;
+      const coord = ringCoords[i];
+      const row = coord.row;
+      const col = coord.col;
       const node = new Node(`Tile-${i}`);
       const transform = node.addComponent(UITransform);
       transform.setContentSize(tileSize, tileSize);
@@ -77,15 +78,20 @@ export class BoardController {
   }
 
   moveSteps(currentIndex: number, steps: number): { newIndex: number; tile: BoardTile } {
-    const maxIndex = this.config.tiles.length - 1;
-    const newIndex = Math.min(currentIndex + steps, maxIndex);
+    const totalTiles = this.config.tiles.length;
+    const newIndex = totalTiles > 0 ? (currentIndex + steps) % totalTiles : 0;
     this.setCurrentIndex(newIndex);
     return { newIndex, tile: this.config.tiles[newIndex] };
   }
 
   setCurrentIndex(index: number): void {
-    const clampedIndex = Math.max(0, Math.min(index, this.config.tiles.length - 1));
-    this.currentIndex = clampedIndex;
+    const totalTiles = this.config.tiles.length;
+    if (totalTiles <= 0) {
+      this.currentIndex = 0;
+      return;
+    }
+    const wrappedIndex = ((index % totalTiles) + totalTiles) % totalTiles;
+    this.currentIndex = wrappedIndex;
     this.refreshHighlightAndPlayer();
   }
 
@@ -112,7 +118,6 @@ export class BoardController {
     const tileNode = this.tileNodes[this.currentIndex];
     if (tileNode) {
       const worldPos = tileNode.getWorldPosition();
-      worldPos.y += tileSize * 0.35;
       this.playerNode.setWorldPosition(worldPos);
     }
   }
@@ -131,5 +136,22 @@ export class BoardController {
 
   getTile(index: number): BoardTile {
     return this.config.tiles[index];
+  }
+
+  private getOuterRingCoords(size: number): { row: number; col: number }[] {
+    const coords: { row: number; col: number }[] = [];
+    for (let col = 0; col < size; col += 1) {
+      coords.push({ row: 0, col });
+    }
+    for (let row = 1; row < size; row += 1) {
+      coords.push({ row, col: size - 1 });
+    }
+    for (let col = size - 2; col >= 0; col -= 1) {
+      coords.push({ row: size - 1, col });
+    }
+    for (let row = size - 2; row >= 1; row -= 1) {
+      coords.push({ row, col: 0 });
+    }
+    return coords;
   }
 }
