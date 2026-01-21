@@ -22,6 +22,9 @@ export class BoardConfig {
   spacing = 12;
   startIndex = 0;
   tiles: BoardTile[] = [];
+  weaponIndices: number[] = [3, 8, 13, 18];
+  healIndices: number[] = [5, 11, 16];
+  buffIndices: number[] = [1, 9, 14];
 
   constructor(size = 20) {
     this.boardSize = size;
@@ -29,15 +32,19 @@ export class BoardConfig {
   }
 
   private createDefaultTiles(size: number): BoardTile[] {
-    const types: TileType[] = [
-      TileType.Weapon,
-      TileType.Heal,
-      TileType.Buff,
-      TileType.Empty,
-    ];
+    const weaponSet = new Set(this.weaponIndices);
+    const healSet = new Set(this.healIndices);
+    const buffSet = new Set(this.buffIndices);
     const tiles: BoardTile[] = [];
     for (let i = 0; i < size; i += 1) {
-      const type = types[Math.floor(Math.random() * types.length)];
+      let type = TileType.Empty;
+      if (weaponSet.has(i)) {
+        type = TileType.Weapon;
+      } else if (healSet.has(i)) {
+        type = TileType.Heal;
+      } else if (buffSet.has(i)) {
+        type = TileType.Buff;
+      }
       const tile: BoardTile = { type };
       if (type === TileType.Weapon || type === TileType.Skill) {
         tile.level = 1;

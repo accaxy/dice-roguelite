@@ -37,7 +37,7 @@ export class WeaponController {
   }
 
   tick(dt: number, enemies: EnemyTarget[], getCellWorldPos: (cellIndex: number) => Vec3): void {
-    if (this.weapons.length === 0 || enemies.length === 0) {
+    if (this.weapons.length === 0) {
       return;
     }
 

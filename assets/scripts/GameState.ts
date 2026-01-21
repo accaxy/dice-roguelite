@@ -2,7 +2,6 @@ import { WeaponInstance } from './WeaponController';
 
 export enum Phase {
   Explore = 'Explore',
-  ChoosingReward = 'ChoosingReward',
   Battle = 'Battle',
   GameOver = 'GameOver',
 }
@@ -14,6 +13,7 @@ export class GameState {
   waveNo = 1;
   positionIndex = 0;
   weapons: WeaponInstance[] = [];
+  isChoosingReward = false;
 
   setPhase(next: Phase) {
     this.phase = next;
