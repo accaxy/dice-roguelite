@@ -1,5 +1,5 @@
 import { BoardConfig, TileType } from './BoardConfig';
-import { WeaponController, WeaponDefinition } from './WeaponController';
+import { WeaponController, WeaponDefinition, WeaponInstance } from './WeaponController';
 
 export interface TileControllerOptions {
   boardConfig: BoardConfig;
@@ -7,6 +7,7 @@ export interface TileControllerOptions {
   log: (message: string) => void;
   onHeal: (amount: number) => void;
   onBuff: (amount: number) => void;
+  onWeaponPlaced: (weapon: WeaponInstance) => void;
   showWeaponChoices: (options: WeaponDefinition[], onPick: (def: WeaponDefinition) => void) => void;
 }
 
@@ -16,6 +17,7 @@ export class TileController {
   private log: (message: string) => void;
   private onHeal: (amount: number) => void;
   private onBuff: (amount: number) => void;
+  private onWeaponPlaced: (weapon: WeaponInstance) => void;
   private showWeaponChoices: (options: WeaponDefinition[], onPick: (def: WeaponDefinition) => void) => void;
 
   private weaponDefs: WeaponDefinition[] = [
@@ -32,6 +34,7 @@ export class TileController {
     this.log = options.log;
     this.onHeal = options.onHeal;
     this.onBuff = options.onBuff;
+    this.onWeaponPlaced = options.onWeaponPlaced;
     this.showWeaponChoices = options.showWeaponChoices;
   }
 
@@ -41,7 +44,8 @@ export class TileController {
       const options = this.pickWeaponOptions();
       this.log('触发武器格：请选择一件武器。');
       this.showWeaponChoices(options, (def) => {
-        this.weaponController.addWeaponToCell(index, def);
+        const weapon = this.weaponController.addWeaponToCell(index, def);
+        this.onWeaponPlaced(weapon);
         this.log(`装备 ${def.name} 到格子 ${index + 1}。`);
         onComplete();
       });

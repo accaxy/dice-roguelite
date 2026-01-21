@@ -48,6 +48,7 @@ export class GameRoot extends Component {
   private tileController: TileController | null = null;
   private weaponController = new WeaponController();
   private rewardPanel: Node | null = null;
+  private totalWaves = 4;
 
   start() {
     this.ensureBoardNodes();
@@ -72,6 +73,7 @@ export class GameRoot extends Component {
     this.setupEnemyController();
     this.setupTileController();
     this.updateRollButtonState();
+    this.refreshWeaponTileLabels();
   }
 
   private ensureBoardNodes() {
@@ -115,15 +117,13 @@ export class GameRoot extends Component {
       return;
     }
     const waiting = this.tileController.resolveTile(index, () => {
-      if (this.state.phase === Phase.ChoosingReward) {
-        this.state.setPhase(Phase.Explore);
-      }
+      this.state.isChoosingReward = false;
       this.refreshStatusLabel();
       this.updateRollButtonState();
       this.checkAutoBattle();
     });
     if (waiting) {
-      this.state.setPhase(Phase.ChoosingReward);
+      this.state.isChoosingReward = true;
       this.refreshStatusLabel();
       this.updateRollButtonState();
       return;
@@ -132,7 +132,7 @@ export class GameRoot extends Component {
   }
 
   private checkAutoBattle() {
-    if (this.state.phase !== Phase.ChoosingReward && this.state.diceLeft <= 0) {
+    if (!this.state.isChoosingReward && this.state.diceLeft <= 0) {
       this.enterBattle();
     }
   }
@@ -149,12 +149,22 @@ export class GameRoot extends Component {
   }
 
   private finishWave() {
-    this.state.waveNo += 1;
-    this.state.diceLeft = 3;
-    this.state.setPhase(Phase.Explore);
-    this.log('波次清完，回到探索。');
-    this.refreshStatusLabel();
-    this.updateRollButtonState();
+    if (!this.enemyController) {
+      return;
+    }
+    if (this.state.waveNo < this.totalWaves) {
+      this.state.waveNo += 1;
+      this.log(`进入下一波：${this.state.waveNo}/${this.totalWaves}。`);
+      this.enemyController.startWave(this.state.waveNo);
+      this.refreshStatusLabel();
+    } else {
+      this.state.waveNo = 1;
+      this.state.diceLeft = 3;
+      this.state.setPhase(Phase.Explore);
+      this.log('所有波次清完，回到探索。');
+      this.refreshStatusLabel();
+      this.updateRollButtonState();
+    }
   }
 
   private refreshStatusLabel() {
@@ -215,6 +225,7 @@ export class GameRoot extends Component {
         }
       },
     });
+    this.totalWaves = this.enemyController.getTotalWaves();
   }
 
   private setupTileController() {
@@ -230,6 +241,9 @@ export class GameRoot extends Component {
         this.state.diceLeft += amount;
         this.refreshStatusLabel();
       },
+      onWeaponPlaced: (weapon) => {
+        this.updateWeaponTileLabel(weapon.cellIndex, weapon.name, weapon.cooldown);
+      },
       showWeaponChoices: (options, onPick) => {
         this.showWeaponChoiceUI(options, onPick);
       },
@@ -240,7 +254,8 @@ export class GameRoot extends Component {
     if (!this.rollButton) {
       return;
     }
-    this.rollButton.interactable = this.state.phase === Phase.Explore && this.state.diceLeft > 0;
+    this.rollButton.interactable =
+      this.state.phase === Phase.Explore && this.state.diceLeft > 0 && !this.state.isChoosingReward;
   }
 
   private showWeaponChoiceUI(options: WeaponDefinition[], onPick: (def: WeaponDefinition) => void) {
@@ -283,18 +298,35 @@ export class GameRoot extends Component {
   }
 
   update(dt: number) {
-    if (this.state.phase !== Phase.Battle || !this.enemyController || !this.boardController) {
+    if (!this.enemyController || !this.boardController) {
       return;
     }
-    this.enemyController.update(dt);
-    const enemies = this.enemyController.getEnemies().map((enemy) => ({
-      position: enemy.node.getWorldPosition(),
-      isAlive: () => enemy.node.isValid && enemy.hp > 0,
-      takeDamage: (amount: number) => this.enemyController?.damageEnemy(enemy, amount),
-    }));
-    this.weaponController.tick(dt, enemies, (cellIndex) => this.boardController!.getTileWorldPos(cellIndex));
-    if (this.enemyController.isWaveCleared()) {
-      this.finishWave();
+    if (this.state.phase === Phase.Battle) {
+      this.enemyController.update(dt);
+      const enemies = this.enemyController.getEnemies().map((enemy) => ({
+        position: enemy.node.getWorldPosition(),
+        isAlive: () => enemy.node.isValid && enemy.hp > 0,
+        takeDamage: (amount: number) => this.enemyController?.damageEnemy(enemy, amount),
+      }));
+      this.weaponController.tick(dt, enemies, (cellIndex) => this.boardController!.getTileWorldPos(cellIndex));
+      this.refreshWeaponTileLabels();
+      if (this.enemyController.isWaveCleared()) {
+        this.finishWave();
+      }
     }
+  }
+
+  private refreshWeaponTileLabels(): void {
+    this.weaponController.weapons.forEach((weapon) => {
+      this.updateWeaponTileLabel(weapon.cellIndex, weapon.name, weapon.cooldown);
+    });
+  }
+
+  private updateWeaponTileLabel(cellIndex: number, name: string, cooldown: number): void {
+    if (!this.boardController) {
+      return;
+    }
+    const cooldownText = cooldown > 0 ? `\nCD:${cooldown.toFixed(1)}s` : '\n就绪';
+    this.boardController.setTileInfo(cellIndex, `${name}${cooldownText}`);
   }
 }

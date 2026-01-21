@@ -7,6 +7,7 @@ export class BoardController {
   private playerNode: Node | null = null;
   private tileNodes: Node[] = [];
   private tileGraphics: Graphics[] = [];
+  private tileInfoLabels: Label[] = [];
   private tileContainer: Node | null = null;
   private currentIndex = 0;
 
@@ -27,6 +28,7 @@ export class BoardController {
     }
     this.tileNodes = [];
     this.tileGraphics = [];
+    this.tileInfoLabels = [];
 
     if (this.tileContainer && this.tileContainer.isValid) {
       this.tileContainer.removeFromParent();
@@ -72,6 +74,19 @@ export class BoardController {
       label.string = `${i + 1}`;
       label.fontSize = 22;
       label.color = new Color(240, 240, 240, 255);
+
+      const infoNode = new Node('Info');
+      const infoTransform = infoNode.addComponent(UITransform);
+      infoTransform.setContentSize(tileSize - 8, tileSize - 8);
+      infoNode.setParent(node);
+      infoNode.setPosition(new Vec3(0, -20, 0));
+      const infoLabel = infoNode.addComponent(Label);
+      infoLabel.string = '';
+      infoLabel.fontSize = 14;
+      infoLabel.color = new Color(200, 220, 255, 255);
+      infoLabel.overflow = Label.Overflow.SHRINK;
+      infoLabel.lineHeight = 16;
+      this.tileInfoLabels.push(infoLabel);
     }
 
     this.refreshHighlightAndPlayer();
@@ -103,6 +118,13 @@ export class BoardController {
   getTileWorldPos(index: number): Vec3 {
     const tileNode = this.tileNodes[index];
     return tileNode ? tileNode.getWorldPosition() : new Vec3();
+  }
+
+  setTileInfo(index: number, info: string): void {
+    const label = this.tileInfoLabels[index];
+    if (label) {
+      label.string = info;
+    }
   }
 
   refreshHighlightAndPlayer(): void {
