@@ -8,6 +8,7 @@ export interface EnemyControllerOptions {
   spawnInterval?: number;
   enemySpeed?: number;
   enemyDamage?: number;
+  attackInterval?: number;
   onEnemyHit?: (targetIndex: number, damage: number) => void;
 }
 
@@ -38,7 +39,7 @@ interface EnemyEntry {
   attackTimer: number;
   damage: number;
   speed: number;
-  arrived: boolean;
+  state: 'moving' | 'attacking';
   type: EnemyType;
   label: Label | null;
   id: number;
@@ -62,6 +63,7 @@ export class EnemyController {
     { type: 'boss', spawnCount: 1, spawnInterval: 2.4 },
   ];
   private enemyId = 0;
+  private attacksEnabled = true;
 
   spawnInterval = 2.0;
   enemySpeed = 250;
@@ -102,6 +104,7 @@ export class EnemyController {
     this.spawnInterval = options.spawnInterval ?? this.spawnInterval;
     this.enemySpeed = options.enemySpeed ?? this.enemySpeed;
     this.enemyDamage = options.enemyDamage ?? this.enemyDamage;
+    this.enemyAttackIntervalMultiplier = options.attackInterval ?? this.enemyAttackIntervalMultiplier;
     this.onEnemyHit = options.onEnemyHit;
   }
 
@@ -118,6 +121,10 @@ export class EnemyController {
 
   stopSpawning(): void {
     this.spawnEnabled = false;
+  }
+
+  setAttacksEnabled(enabled: boolean): void {
+    this.attacksEnabled = enabled;
   }
 
   startWave(waveNo: number): void {
@@ -190,7 +197,7 @@ export class EnemyController {
       attackTimer: 0,
       damage: stats.damage,
       speed: stats.speed,
-      arrived: false,
+      state: 'moving',
       type: this.currentWave?.type ?? 'normal',
       label,
       id: this.enemyId++,
@@ -208,7 +215,7 @@ export class EnemyController {
       if (!enemy.node.isValid) {
         continue;
       }
-      if (!enemy.arrived) {
+      if (enemy.state === 'moving') {
         const moveDistance = enemy.speed * dt;
         const current = enemy.node.getPosition();
         const toTarget = new Vec3();
@@ -216,7 +223,7 @@ export class EnemyController {
         const distance = toTarget.length();
         if (distance <= moveDistance) {
           enemy.node.setPosition(enemy.targetPosition);
-          enemy.arrived = true;
+          enemy.state = 'attacking';
           enemy.attackTimer = 0;
         } else {
           toTarget.normalize();
@@ -226,7 +233,7 @@ export class EnemyController {
           enemy.node.setPosition(nextPos);
         }
       }
-      if (enemy.arrived) {
+      if (enemy.state === 'attacking' && this.attacksEnabled) {
         enemy.attackTimer += dt;
         while (enemy.attackTimer >= enemy.attackInterval) {
           enemy.attackTimer -= enemy.attackInterval;
