@@ -40,6 +40,12 @@ export class GameRoot extends Component {
   @property({ type: Number })
   enemyDamage = 1;
 
+  @property({ type: Number })
+  enemyAttackInterval = 1.0;
+
+  @property({ type: Number })
+  maxLogLines = 8;
+
   private boardController: BoardController | null = null;
   private enemyController: EnemyController | null = null;
   private state = new GameState();
@@ -177,7 +183,10 @@ export class GameRoot extends Component {
   }
 
   private log(message: string) {
-    this.logLines = [...this.logLines, message].slice(-12);
+    this.logLines.push(message);
+    if (this.logLines.length > this.maxLogLines) {
+      this.logLines = this.logLines.slice(-this.maxLogLines);
+    }
     if (this.infoLabel) {
       this.infoLabel.string = this.logLines.join('\n');
     }
@@ -213,6 +222,7 @@ export class GameRoot extends Component {
       spawnInterval: this.spawnInterval,
       enemySpeed: this.enemySpeed,
       enemyDamage: this.enemyDamage,
+      attackInterval: this.enemyAttackInterval,
       onEnemyHit: (targetIndex, damage) => {
         this.state.baseHP = Math.max(this.state.baseHP - damage, 0);
         this.refreshStatusLabel();
@@ -221,6 +231,7 @@ export class GameRoot extends Component {
           this.state.setPhase(Phase.GameOver);
           this.log('游戏结束');
           this.enemyController?.stopSpawning();
+          this.enemyController?.setAttacksEnabled(false);
           this.updateRollButtonState();
         }
       },
