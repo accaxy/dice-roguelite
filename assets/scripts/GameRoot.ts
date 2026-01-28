@@ -317,7 +317,7 @@ export class GameRoot extends Component {
       const enemies = this.enemyController.getEnemies().map((enemy) => ({
         position: enemy.node.getWorldPosition(),
         isAlive: () => enemy.node.isValid && enemy.hp > 0,
-        takeDamage: (amount: number) => this.enemyController?.damageEnemy(enemy, amount),
+        takeDamage: (amount: number) => this.enemyController?.damageEnemy(enemy.id, amount),
       }));
       this.weaponController.tick(dt, enemies, (cellIndex) => this.boardController!.getTileWorldPos(cellIndex));
       this.refreshWeaponTileLabels();
