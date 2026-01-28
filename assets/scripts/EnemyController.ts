@@ -39,7 +39,7 @@ interface EnemyEntry {
   attackTimer: number;
   damage: number;
   speed: number;
-  state: 'moving' | 'attacking';
+  arrived: boolean;
   type: EnemyType;
   label: Label | null;
   id: number;
@@ -64,6 +64,7 @@ export class EnemyController {
   ];
   private enemyId = 0;
   private attacksEnabled = true;
+  private arriveDist = 12;
 
   spawnInterval = 2.0;
   enemySpeed = 250;
@@ -147,12 +148,15 @@ export class EnemyController {
     return this.enemies;
   }
 
-  damageEnemy(enemy: EnemyEntry, damage: number): void {
+  damageEnemy(enemyId: number, damage: number): void {
+    const enemy = this.enemies.find((entry) => entry.id === enemyId);
+    if (!enemy) {
+      return;
+    }
     enemy.hp = Math.max(0, enemy.hp - damage);
     this.updateEnemyLabel(enemy);
     if (enemy.hp <= 0) {
-      enemy.node.destroy();
-      this.enemies = this.enemies.filter((entry) => entry.id !== enemy.id);
+      this.removeEnemy(enemy);
     }
   }
 
@@ -177,7 +181,7 @@ export class EnemyController {
     const transform = enemyNode.addComponent(UITransform);
     transform.setContentSize(40, 40);
     const label = enemyNode.addComponent(Label);
-    label.string = `${stats.name}\n${stats.maxHp}/${stats.maxHp}`;
+    label.string = `${stats.name} ${stats.maxHp}/${stats.maxHp}`;
     label.fontSize = 16;
     label.color = stats.color;
     label.lineHeight = 18;
@@ -197,7 +201,7 @@ export class EnemyController {
       attackTimer: 0,
       damage: stats.damage,
       speed: stats.speed,
-      state: 'moving',
+      arrived: false,
       type: this.currentWave?.type ?? 'normal',
       label,
       id: this.enemyId++,
@@ -215,15 +219,15 @@ export class EnemyController {
       if (!enemy.node.isValid) {
         continue;
       }
-      if (enemy.state === 'moving') {
+      if (!enemy.arrived) {
         const moveDistance = enemy.speed * dt;
         const current = enemy.node.getPosition();
         const toTarget = new Vec3();
         Vec3.subtract(toTarget, enemy.targetPosition, current);
         const distance = toTarget.length();
-        if (distance <= moveDistance) {
+        if (distance <= Math.max(this.arriveDist, moveDistance)) {
           enemy.node.setPosition(enemy.targetPosition);
-          enemy.state = 'attacking';
+          enemy.arrived = true;
           enemy.attackTimer = 0;
         } else {
           toTarget.normalize();
@@ -233,9 +237,9 @@ export class EnemyController {
           enemy.node.setPosition(nextPos);
         }
       }
-      if (enemy.state === 'attacking' && this.attacksEnabled) {
+      if (enemy.arrived && this.attacksEnabled) {
         enemy.attackTimer += dt;
-        while (enemy.attackTimer >= enemy.attackInterval) {
+        if (enemy.attackTimer >= enemy.attackInterval) {
           enemy.attackTimer -= enemy.attackInterval;
           this.resolveHit(enemy);
         }
@@ -268,7 +272,12 @@ export class EnemyController {
     if (!enemy.label) {
       return;
     }
-    enemy.label.string = `${this.enemyStats[enemy.type].name}\n${enemy.hp}/${enemy.maxHp}`;
+    enemy.label.string = `${this.enemyStats[enemy.type].name} ${enemy.hp}/${enemy.maxHp}`;
+  }
+
+  private removeEnemy(enemy: EnemyEntry): void {
+    enemy.node.destroy();
+    this.enemies = this.enemies.filter((entry) => entry.id !== enemy.id);
   }
 
   getTotalWaves(): number {
