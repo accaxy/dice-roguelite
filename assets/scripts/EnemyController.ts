@@ -12,9 +12,13 @@ export interface EnemyControllerOptions {
   onEnemyHit?: (targetIndex: number, damage: number) => void;
 }
 
-export interface WaveDefinition {
+export interface WaveEnemyGroup {
   type: EnemyType;
-  spawnCount: number;
+  count: number;
+}
+
+export interface WaveDefinition {
+  entries: WaveEnemyGroup[];
   spawnInterval: number;
 }
 
@@ -56,11 +60,11 @@ export class EnemyController {
   private totalToSpawn = 0;
   private spawnedCount = 0;
   private currentWave: WaveDefinition | null = null;
+  private spawnQueue: EnemyType[] = [];
   private waves: WaveDefinition[] = [
-    { type: 'normal', spawnCount: 4, spawnInterval: 1.2 },
-    { type: 'normal', spawnCount: 7, spawnInterval: 1.0 },
-    { type: 'elite', spawnCount: 3, spawnInterval: 1.6 },
-    { type: 'boss', spawnCount: 1, spawnInterval: 2.4 },
+    { entries: [{ type: 'normal', count: 6 }], spawnInterval: 1.1 },
+    { entries: [{ type: 'normal', count: 3 }, { type: 'elite', count: 1 }], spawnInterval: 1.2 },
+    { entries: [{ type: 'boss', count: 1 }], spawnInterval: 1.8 },
   ];
   private enemyId = 0;
   private attacksEnabled = true;
@@ -134,10 +138,16 @@ export class EnemyController {
     this.enemies.forEach((enemy) => enemy.node.destroy());
     this.enemies = [];
     this.spawnedCount = 0;
+    this.spawnQueue = [];
     const waveIndex = Math.max(0, Math.min(this.waves.length - 1, waveNo - 1));
     this.currentWave = this.waves[waveIndex];
+    this.currentWave.entries.forEach((entry) => {
+      for (let i = 0; i < entry.count; i += 1) {
+        this.spawnQueue.push(entry.type);
+      }
+    });
     this.spawnInterval = this.currentWave.spawnInterval;
-    this.totalToSpawn = this.currentWave.spawnCount;
+    this.totalToSpawn = this.spawnQueue.length;
   }
 
   isWaveCleared(): boolean {
@@ -175,7 +185,8 @@ export class EnemyController {
     const targetIndex = Math.floor(Math.random() * totalTiles);
     const targetWorld = this.boardController.getTileWorldPos(targetIndex);
     const targetLocal = enemyRootTransform.convertToNodeSpaceAR(targetWorld);
-    const stats = this.getStatsForWave();
+    const nextType = this.spawnQueue[this.spawnedCount] ?? 'normal';
+    const stats = this.getStatsForType(nextType);
 
     const enemyNode = new Node('Enemy');
     const transform = enemyNode.addComponent(UITransform);
@@ -202,7 +213,7 @@ export class EnemyController {
       damage: stats.damage,
       speed: stats.speed,
       arrived: false,
-      type: this.currentWave?.type ?? 'normal',
+      type: nextType,
       label,
       id: this.enemyId++,
     };
@@ -255,9 +266,8 @@ export class EnemyController {
     }
   }
 
-  private getStatsForWave(): EnemyStats {
-    const waveType = this.currentWave?.type ?? 'normal';
-    const base = this.enemyStats[waveType];
+  private getStatsForType(type: EnemyType): EnemyStats {
+    const base = this.enemyStats[type];
     const speedScale = this.enemySpeed / 250;
     const damageScale = this.enemyDamage;
     return {
@@ -282,5 +292,17 @@ export class EnemyController {
 
   getTotalWaves(): number {
     return this.waves.length;
+  }
+
+  getTotalToSpawn(): number {
+    return this.totalToSpawn;
+  }
+
+  getSpawnedCount(): number {
+    return this.spawnedCount;
+  }
+
+  getAliveCount(): number {
+    return this.enemies.length;
   }
 }
