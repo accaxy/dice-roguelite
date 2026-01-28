@@ -315,7 +315,7 @@ export class GameRoot extends Component {
   }
 
   update(dt: number) {
-    if (!this.enemyController || !this.boardController) {
+    if (!this.enemyController || !this.boardController || !this.boardRoot) {
       return;
     }
     if (this.state.phase === Phase.Battle) {
@@ -325,7 +325,12 @@ export class GameRoot extends Component {
         isAlive: () => enemy.node.isValid && enemy.hp > 0,
         takeDamage: (amount: number) => this.enemyController?.damageEnemy(enemy.id, amount),
       }));
-      this.weaponController.tick(dt, enemies, (cellIndex) => this.boardController!.getTileWorldPos(cellIndex));
+      this.weaponController.tick(
+        dt,
+        enemies,
+        (cellIndex) => this.boardController!.getTileWorldPos(cellIndex),
+        this.boardRoot!.getWorldPosition(),
+      );
       this.refreshWeaponTileLabels();
       this.refreshInfoLabel();
       if (this.enemyController.isWaveCleared()) {

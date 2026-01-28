@@ -36,36 +36,56 @@ export class WeaponController {
     return instance;
   }
 
-  tick(dt: number, enemies: EnemyTarget[], getCellWorldPos: (cellIndex: number) => Vec3): void {
+  tick(
+    dt: number,
+    enemies: EnemyTarget[],
+    getCellWorldPos: (cellIndex: number) => Vec3,
+    baseWorldPos: Vec3,
+  ): void {
     if (this.weapons.length === 0) {
       return;
     }
 
     this.weapons.forEach((weapon) => {
       weapon.cooldown = Math.max(0, weapon.cooldown - dt);
-      const origin = getCellWorldPos(weapon.cellIndex);
-      const target = this.findClosestEnemy(origin, weapon.range, enemies);
-      if (!target || weapon.cooldown > 0) {
+      if (weapon.cooldown > 0) {
         return;
       }
-      target.takeDamage(weapon.damage);
+      const origin = getCellWorldPos(weapon.cellIndex);
+      const target = this.findPriorityEnemy(origin, weapon.range, baseWorldPos, enemies);
+      if (!target) {
+        return;
+      }
+      const damage = this.rollDamage(weapon.damage);
+      target.takeDamage(damage);
       weapon.cooldown = weapon.interval;
     });
   }
 
-  private findClosestEnemy(origin: Vec3, range: number, enemies: EnemyTarget[]): EnemyTarget | null {
+  private findPriorityEnemy(origin: Vec3, range: number, baseWorldPos: Vec3, enemies: EnemyTarget[]): EnemyTarget | null {
     let closest: EnemyTarget | null = null;
-    let minDistance = Number.POSITIVE_INFINITY;
+    let minBaseDistance = Number.POSITIVE_INFINITY;
+    let minWeaponDistance = Number.POSITIVE_INFINITY;
     enemies.forEach((enemy) => {
       if (!enemy.isAlive()) {
         return;
       }
-      const distance = Vec3.distance(origin, enemy.position);
-      if (distance <= range && distance < minDistance) {
-        minDistance = distance;
+      const weaponDistance = Vec3.distance(origin, enemy.position);
+      if (weaponDistance > range) {
+        return;
+      }
+      const baseDistance = Vec3.distance(baseWorldPos, enemy.position);
+      if (baseDistance < minBaseDistance || (baseDistance === minBaseDistance && weaponDistance < minWeaponDistance)) {
+        minBaseDistance = baseDistance;
+        minWeaponDistance = weaponDistance;
         closest = enemy;
       }
     });
     return closest;
+  }
+
+  private rollDamage(maxDamage: number): number {
+    const upper = Math.max(1, Math.floor(maxDamage));
+    return Math.floor(Math.random() * upper) + 1;
   }
 }
