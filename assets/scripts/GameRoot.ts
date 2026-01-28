@@ -55,6 +55,7 @@ export class GameRoot extends Component {
   private weaponController = new WeaponController();
   private rewardPanel: Node | null = null;
   private totalWaves = 4;
+  private initialDice = 3;
 
   start() {
     this.ensureBoardNodes();
@@ -66,7 +67,7 @@ export class GameRoot extends Component {
     }
 
     this.state.phase = Phase.Explore;
-    this.state.diceLeft = 3;
+    this.state.diceLeft = this.initialDice;
     this.refreshStatusLabel();
     this.log('探索开始：点击掷骰前进。');
 
@@ -160,17 +161,14 @@ export class GameRoot extends Component {
     }
     if (this.state.waveNo < this.totalWaves) {
       this.state.waveNo += 1;
-      this.log(`进入下一波：${this.state.waveNo}/${this.totalWaves}。`);
-      this.enemyController.startWave(this.state.waveNo);
-      this.refreshStatusLabel();
     } else {
       this.state.waveNo = 1;
-      this.state.diceLeft = 3;
-      this.state.setPhase(Phase.Explore);
-      this.log('所有波次清完，回到探索。');
-      this.refreshStatusLabel();
-      this.updateRollButtonState();
     }
+    this.state.diceLeft = this.initialDice;
+    this.state.setPhase(Phase.Explore);
+    this.log(`波次清完，回到探索。下一波：${this.state.waveNo}/${this.totalWaves}。`);
+    this.refreshStatusLabel();
+    this.updateRollButtonState();
   }
 
   private refreshStatusLabel() {
@@ -180,6 +178,7 @@ export class GameRoot extends Component {
     if (this.baseHpLabel) {
       this.baseHpLabel.string = `BaseHP: ${this.state.baseHP}`;
     }
+    this.refreshInfoLabel();
   }
 
   private log(message: string) {
@@ -187,16 +186,23 @@ export class GameRoot extends Component {
     if (this.logLines.length > this.maxLogLines) {
       this.logLines = this.logLines.slice(-this.maxLogLines);
     }
-    if (this.infoLabel) {
-      this.infoLabel.string = this.logLines.join('\n');
-    }
+    this.refreshInfoLabel();
   }
 
   private clearLog() {
     this.logLines = [];
-    if (this.infoLabel) {
-      this.infoLabel.string = '';
+    this.refreshInfoLabel();
+  }
+
+  private refreshInfoLabel() {
+    if (!this.infoLabel) {
+      return;
     }
+    const waveStatus = this.enemyController
+      ? `波次：${this.state.waveNo}/${this.totalWaves} 已生成 ${this.enemyController.getSpawnedCount()}/${this.enemyController.getTotalToSpawn()} 存活 ${this.enemyController.getAliveCount()}`
+      : `波次：${this.state.waveNo}/${this.totalWaves}`;
+    const lines = [...this.logLines, waveStatus];
+    this.infoLabel.string = lines.join('\n');
   }
 
   private ensureEnemyRoot() {
@@ -321,6 +327,7 @@ export class GameRoot extends Component {
       }));
       this.weaponController.tick(dt, enemies, (cellIndex) => this.boardController!.getTileWorldPos(cellIndex));
       this.refreshWeaponTileLabels();
+      this.refreshInfoLabel();
       if (this.enemyController.isWaveCleared()) {
         this.finishWave();
       }
